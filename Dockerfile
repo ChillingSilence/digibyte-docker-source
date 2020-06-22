@@ -23,26 +23,24 @@ ARG TESTNET=0
 # Alternatively set size=1 to prune with RPC call 'pruneblockchainheight <height>'
 ARG PRUNESIZE=0
 
-# First we update the apt cache
-RUN apt-get update
+# Update apt cache and set tzdata to non-interactive or it will fail later.
+# Also install essential dependencies for the build project.
+RUN DEBIAN_FRONTEND="noninteractive" apt-get update \
+  && apt-get -y install tzdata \
+  && ln -fs /usr/share/zoneinfo/${LOCALTIMEZONE} /etc/localtime \
+  && dpkg-reconfigure --frontend noninteractive tzdata \
+  && apt-get install -y wget git build-essential libtool autotools-dev automake \
+  pkg-config libssl-dev libevent-dev bsdmainutils python3 libboost-system-dev \
+  libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev \
+  libdb-dev libdb++-dev
 
-# Set tzdata to non-interactive or it will fail later
-RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
-RUN ln -fs /usr/share/zoneinfo/${LOCALTIMEZONE} /etc/localtime
-RUN dpkg-reconfigure --frontend noninteractive tzdata
-
-# We need some essential things to get building with
-RUN apt-get update && apt-get install -y wget git build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils python3 libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libdb-dev libdb++-dev
-
-# Clone the Core wallet source from GitHub and checkout the version
-RUN git clone https://github.com/DigiByte-Core/digibyte/ --branch ${DGBVERSION} --single-branch
-
-# Start the build process
-# For some reason it wants me to change in to it before each running command so I'll come back and revisit this later
-RUN cd ${ROOTDATADIR}/digibyte && ./autogen.sh
-RUN cd ${ROOTDATADIR}/digibyte && ./configure --without-gui --with-incompatible-bdb
-RUN cd ${ROOTDATADIR}/digibyte && make
-RUN cd ${ROOTDATADIR}/digibyte && make install
+# Clone the Core wallet source from GitHub and checkout the version and
+# start the build process.
+RUN git clone https://github.com/DigiByte-Core/digibyte/ --branch ${DGBVERSION} --single-branch \
+  && cd ${ROOTDATADIR}/digibyte && ./autogen.sh \
+  && ./configure --without-gui --with-incompatible-bdb \
+  && make \
+  && make install
 
 RUN mkdir -vp ${ROOTDATADIR}/.digibyte
 VOLUME ${ROOTDATADIR}/.digibyte
