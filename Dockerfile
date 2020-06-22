@@ -4,7 +4,7 @@ WORKDIR /data
 ARG ROOTDATADIR=/data
 ARG RPCUSERNAME=user
 ARG RPCPASSWORD=pass
-ARG VERSION=7.17.2
+ARG DGBVERSION=7.17.2
 ARG ARCH=x86_64
 
 ARG MAINP2P=12024
@@ -12,22 +12,33 @@ ARG MAINRPC=14022
 ARG TESTP2P=12026
 ARG TESTRPC=14023
 
+# You can confirm your timezone by setting the TZ database name field from:
+# https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+ARG LOCALTIMEZONE=Pacific/Auckland
+
 # Set to 1 for running it in testnet mode
 ARG TESTNET=0
+
+# First we update the apt cache
+RUN apt-get update
+
+# Set tzdata to non-interactive or it will fail later
+RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
+RUN ln -fs /usr/share/zoneinfo/${LOCALTIMEZONE} /etc/localtime
+RUN dpkg-reconfigure --frontend noninteractive tzdata
 
 # We need some essential things to get building with
 RUN apt-get update && apt-get install -y wget git build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils python3 libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libdb-dev libdb++-dev
 
 # Clone the Core wallet source from GitHub and checkout the version
-RUN git clone https://github.com/DigiByte-Core/digibyte/
-RUN cd digibyte
-RUN git checkout -b ${VERSION}
+RUN git clone https://github.com/DigiByte-Core/digibyte/ --branch ${DGBVERSION} --single-branch
 
 # Start the build process
-./autogen.sh
-./configure --without-gui --with-incompatible-bdb
-make
-make install
+# For some reason it wants me to change in to it before each running command so I'll come back and revisit this later
+RUN cd ${ROOTDATADIR}/digibyte && ./autogen.sh
+RUN cd ${ROOTDATADIR}/digibyte && ./configure --without-gui --with-incompatible-bdb
+RUN cd ${ROOTDATADIR}/digibyte && make
+RUN cd ${ROOTDATADIR}/digibyte && make install
 
 RUN mkdir -vp ${ROOTDATADIR}/.digibyte
 VOLUME ${ROOTDATADIR}/.digibyte
@@ -56,8 +67,8 @@ txindex=1\n\
 #disabledandelion=1\n\
 testnet=${TESTNET}\n" > ${ROOTDATADIR}/.digibyte/digibyte.conf
 
-# Create symlinks
-RUN ln -s ${ROOTDATADIR}/digibyte-${VERSION}/src/digibyted /usr/bin/digibyted
-RUN ln -s ${ROOTDATADIR}/digibyte-${VERSION}/src/digibyte-cli /usr/bin/digibyte-cli
+# Create symlinks shouldn't be needed as they're installed in /usr/local/bin/
+#RUN ln -s /usr/local/bin/digibyted /usr/bin/digibyted
+#RUN ln -s /usr/local/bin/digibyte-cli /usr/bin/digibyte-cli
 
-CMD /usr/bin/digibyted
+CMD /usr/local/bin/digibyted
