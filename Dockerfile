@@ -89,4 +89,4 @@ testnet=${TESTNET}\n" > ${ROOTDATADIR}/.digibyte/digibyte.conf
 #RUN ln -s /usr/local/bin/digibyted /usr/bin/digibyted
 #RUN ln -s /usr/local/bin/digibyte-cli /usr/bin/digibyte-cli
 
-CMD /usr/local/bin/digibyted
+CMD /usr/local/bin/digibyted -conf=${ROOTDATADIR}/.digibyte/digibyte.conf
