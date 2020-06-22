@@ -19,6 +19,9 @@ ARG LOCALTIMEZONE=Pacific/Auckland
 # Set to 1 for running it in testnet mode
 ARG TESTNET=0
 
+# Do we want any blockchain pruning to take place? Set to 4096 for a 4GB blockchain prune.
+ARG PRUNESIZE=0
+
 # First we update the apt cache
 RUN apt-get update
 
@@ -57,6 +60,7 @@ EXPOSE 12026
 
 RUN echo -e "datadir=${ROOTDATADIR}/.digibyte/\n\
 server=1\n\
+prune=${PRUNESIZE}
 maxconnections=300\n\
 rpcallowip=127.0.0.1\n\
 daemon=1\n\
