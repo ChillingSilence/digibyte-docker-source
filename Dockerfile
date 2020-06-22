@@ -23,6 +23,12 @@ ARG TESTNET=0
 # Alternatively set size=1 to prune with RPC call 'pruneblockchainheight <height>'
 ARG PRUNESIZE=0
 
+# Use multiple processors to build DigiByte from source.
+# Warning: It will try to utilize all your systems cores, which speeds up the build process,
+# but consumes a lot of memory which could lead to OOM-Errors during the build process.
+# Recommendation: Enable this on machines that have more than 16GB RAM.
+ARG PARALLIZE_BUILD=0
+
 # Update apt cache and set tzdata to non-interactive or it will fail later.
 # Also install essential dependencies for the build project.
 RUN DEBIAN_FRONTEND="noninteractive" apt-get update \
@@ -34,12 +40,20 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get update \
   libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev \
   libdb-dev libdb++-dev
 
-# Clone the Core wallet source from GitHub and checkout the version and
-# start the build process.
-RUN git clone https://github.com/DigiByte-Core/digibyte/ --branch ${DGBVERSION} --single-branch \
-  && cd ${ROOTDATADIR}/digibyte && ./autogen.sh \
-  && ./configure --without-gui --with-incompatible-bdb \
-  && make \
+# Clone the Core wallet source from GitHub and checkout the version.
+RUN git clone https://github.com/DigiByte-Core/digibyte/ --branch ${DGBVERSION} --single-branch
+
+# Determine how many cores the build process will use.
+RUN export CORES=1 && [ $PARALLIZE_BUILD -ne 0 ] && export CORES=$(nproc); \
+  echo "Using $CORES core(s) for build process."
+
+# Prepare the build process
+RUN cd ${ROOTDATADIR}/digibyte && ./autogen.sh \
+  && ./configure --without-gui --with-incompatible-bdb
+
+# Start the build process
+RUN cd ${ROOTDATADIR}/digibyte \
+  && make -j$CORES \
   && make install
 
 RUN mkdir -vp ${ROOTDATADIR}/.digibyte
@@ -57,6 +71,7 @@ EXPOSE 14023
 # Allow Testnet P2P comms
 EXPOSE 12026
 
+# Create digibyte.conf file
 RUN echo -e "datadir=${ROOTDATADIR}/.digibyte/\n\
 server=1\n\
 prune=${PRUNESIZE}\n\
