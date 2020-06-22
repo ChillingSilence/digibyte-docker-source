@@ -61,7 +61,7 @@ EXPOSE 12026
 
 RUN echo -e "datadir=${ROOTDATADIR}/.digibyte/\n\
 server=1\n\
-prune=${PRUNESIZE}
+prune=${PRUNESIZE}\n\
 maxconnections=300\n\
 rpcallowip=127.0.0.1\n\
 daemon=1\n\
