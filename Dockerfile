@@ -23,26 +23,38 @@ ARG TESTNET=0
 # Alternatively set size=1 to prune with RPC call 'pruneblockchainheight <height>'
 ARG PRUNESIZE=0
 
-# First we update the apt cache
-RUN apt-get update
+# Use multiple processors to build DigiByte from source.
+# Warning: It will try to utilize all your systems cores, which speeds up the build process,
+# but consumes a lot of memory which could lead to OOM-Errors during the build process.
+# Recommendation: Enable this on machines that have more than 16GB RAM.
+ARG PARALLIZE_BUILD=0
 
-# Set tzdata to non-interactive or it will fail later
-RUN DEBIAN_FRONTEND="noninteractive" apt-get -y install tzdata
-RUN ln -fs /usr/share/zoneinfo/${LOCALTIMEZONE} /etc/localtime
-RUN dpkg-reconfigure --frontend noninteractive tzdata
+# Update apt cache and set tzdata to non-interactive or it will fail later.
+# Also install essential dependencies for the build project.
+RUN DEBIAN_FRONTEND="noninteractive" apt-get update \
+  && apt-get -y install tzdata \
+  && ln -fs /usr/share/zoneinfo/${LOCALTIMEZONE} /etc/localtime \
+  && dpkg-reconfigure --frontend noninteractive tzdata \
+  && apt-get install -y wget git build-essential libtool autotools-dev automake \
+  pkg-config libssl-dev libevent-dev bsdmainutils python3 libboost-system-dev \
+  libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev \
+  libdb-dev libdb++-dev
 
-# We need some essential things to get building with
-RUN apt-get update && apt-get install -y wget git build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils python3 libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-test-dev libboost-thread-dev libdb-dev libdb++-dev
-
-# Clone the Core wallet source from GitHub and checkout the version
+# Clone the Core wallet source from GitHub and checkout the version.
 RUN git clone https://github.com/DigiByte-Core/digibyte/ --branch ${DGBVERSION} --single-branch
 
+# Determine how many cores the build process will use.
+RUN export CORES=1 && [ $PARALLIZE_BUILD -ne 0 ] && export CORES=$(nproc); \
+  echo "Using $CORES core(s) for build process."
+
+# Prepare the build process
+RUN cd ${ROOTDATADIR}/digibyte && ./autogen.sh \
+  && ./configure --without-gui --with-incompatible-bdb
+
 # Start the build process
-# For some reason it wants me to change in to it before each running command so I'll come back and revisit this later
-RUN cd ${ROOTDATADIR}/digibyte && ./autogen.sh
-RUN cd ${ROOTDATADIR}/digibyte && ./configure --without-gui --with-incompatible-bdb
-RUN cd ${ROOTDATADIR}/digibyte && make
-RUN cd ${ROOTDATADIR}/digibyte && make install
+RUN cd ${ROOTDATADIR}/digibyte \
+  && make -j$CORES \
+  && make install
 
 RUN mkdir -vp ${ROOTDATADIR}/.digibyte
 VOLUME ${ROOTDATADIR}/.digibyte
@@ -59,6 +71,7 @@ EXPOSE 14023
 # Allow Testnet P2P comms
 EXPOSE 12026
 
+# Create digibyte.conf file
 RUN echo -e "datadir=${ROOTDATADIR}/.digibyte/\n\
 server=1\n\
 prune=${PRUNESIZE}\n\
@@ -76,4 +89,4 @@ testnet=${TESTNET}\n" > ${ROOTDATADIR}/.digibyte/digibyte.conf
 #RUN ln -s /usr/local/bin/digibyted /usr/bin/digibyted
 #RUN ln -s /usr/local/bin/digibyte-cli /usr/bin/digibyte-cli
 
-CMD /usr/local/bin/digibyted
+CMD /usr/local/bin/digibyted -conf=${ROOTDATADIR}/.digibyte/digibyte.conf
