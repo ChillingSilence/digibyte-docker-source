@@ -23,12 +23,6 @@ ARG TESTNET=0
 # Alternatively set size=1 to prune with RPC call 'pruneblockchainheight <height>'
 ARG PRUNESIZE=0
 
-# Use multiple processors to build DigiByte from source.
-# Warning: It will try to utilize all your systems cores, which speeds up the build process,
-# but consumes a lot of memory which could lead to OOM-Errors during the build process.
-# Recommendation: Enable this on machines that have more than 16GB RAM.
-ARG PARALLIZE_BUILD=0
-
 # Update apt cache and set tzdata to non-interactive or it will fail later.
 # Also install essential dependencies for the build project.
 RUN DEBIAN_FRONTEND="noninteractive" apt-get update \
